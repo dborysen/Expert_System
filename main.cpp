@@ -6,21 +6,23 @@
 /*   By: dborysen <dborysen@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2019/04/23 13:43:37 by dborysen          #+#    #+#             */
-/*   Updated: 2019/05/02 11:56:53 by dborysen         ###   ########.fr       */
+/*   Updated: 2019/05/03 13:32:23 by dborysen         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include <iostream>
+#include <memory>
 #include "ExpertSystem.hpp"
 
 int main(int argc, char** argv)
 {
     try
     {
-        if (argc != 2)
+        if (argc != maxArgNum)
             throw std::logic_error("\033[1;31mError:\033[0m wrong params num");
 
-        std::unique_ptr<ExpertSystem> expertSystem(new ExpertSystem(argv[1]));
+        std::make_unique<ExpertSystem>(argv[argId]);
+
     }
     catch(const std::exception& e)
     {

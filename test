@@ -1,8 +1,22 @@
-C + V => E
-A + B + C => D | A
+C => E
+A + B + C => D
+A | B => C
+A + !B => F
+C | !G => H
+V ^ W + C => X
+A + B => Y + Z
+C | D => X | V
+(E + F) => !V
 
-=ABG
+=ABG # Initial facts : A, B and G are true. All others are false.
+# If no facts are initially true, then a simple "=" followed
+# by a newline is used
+?GVX # Queries : What are G, V and X ?
 
-?GVX
-
-([A-Z] ([/^|+]|(=>)) )|
+#( )
+#!
+#+
+#|
+#^
+#=>
+#<=>
