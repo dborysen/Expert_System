@@ -6,7 +6,7 @@
 /*   By: dborysen <dborysen@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2019/04/23 13:44:35 by dborysen          #+#    #+#             */
-/*   Updated: 2019/05/06 18:35:35 by dborysen         ###   ########.fr       */
+/*   Updated: 2019/05/08 15:52:04 by dborysen         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -55,26 +55,34 @@ private:
         bool        isChecked = false;
     }               t_token;
 
-    using VecVecToken = std::vector<std::vector<t_token> >;
+    using VecToken = std::vector<t_token>;
+    using VecVecToken = std::vector<VecToken>;
 
-    VecStr  LoadData(const std::string& fileName) const;
+    VecStr      LoadData(const std::string& fileName) const;
 
-    VecStr  CutAllComments(const VecStr& data, char commentSymbol) const;
-    bool    ValidateData(const VecStr& data) const;
-    bool    AllSymbolsValid(const VecStr& data) const;
+    VecStr      CutAllComments(const VecStr& data, char commentSymbol) const;
+    bool        IsDataValid(const VecStr& data) const;
+    bool        IsAllSymbolsValid(const VecStr& data) const;
 
-    void        SaveTokens(VecStr& data);
     VecVecToken Lexer(const VecStr& data);
+    t_token     CreateTokenStruct(const std::string& line) const;
+    VecToken    SplitOnTokensStructs(std::string line) const;
 
-    VecChr  GetСondition(VecStr& data, const std::string& factType);
+    VecChr      GetСondition(VecStr& data, const std::string& factType);
+
+    void        ProcessAllRules(VecVecToken& dataInTokens);
+
+    void        MarkAllTrueFacts(VecVecToken& dataInTokens);
+    void        MarkKnownFact(VecVecToken& dataInTokens,
+                                const t_token& trueFact);
+    void        MarkAllFalseFacts(VecVecToken& dataInTokens);
+
+    VecToken    ProcessRule(const VecToken& rule) const;
 
     VecStr  _fileData;
 
     VecChr  _trueFacts {};
     VecChr  _factsToFind {};
     
-    VecVecToken _dataInTokens;
-
-    std::stack<t_token> _factStack;
-    std::stack<t_token> _operatorStack;
+    VecVecToken _tokens;
 };

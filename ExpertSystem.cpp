@@ -6,14 +6,14 @@
 /*   By: dborysen <dborysen@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2019/04/30 15:05:25 by dborysen          #+#    #+#             */
-/*   Updated: 2019/05/06 18:48:38 by dborysen         ###   ########.fr       */
+/*   Updated: 2019/05/08 16:42:25 by dborysen         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "ExpertSystem.hpp"
 #include <map>
 
-static std::map<std::string, size_t> operationPriority = {
+static std::map<std::string, size_t> operationPriority {
     {"(", 6},
     {")", 6},
     {"!", 5},
@@ -39,56 +39,171 @@ ExpertSystem::ExpertSystem(const std::string& fileName)
 {    
     _fileData = CutAllComments(LoadData(fileName), '#');
 
-    if (!ValidateData(_fileData))
+    if (!IsDataValid(_fileData))
         throw std::logic_error("Validation Failed");
 
-    SaveTokens(_fileData);
+    _trueFacts = GetСondition(_fileData, "=");
+    _factsToFind = GetСondition(_fileData, "\\?");
 
-    // for (const auto& line : _fileData)
-    // {
-    //     std::cout << line << std::endl;
-    // }
+    _tokens = Lexer(_fileData);
+    
+    ProcessAllRules(_tokens);
+}
+
+void    ExpertSystem::ProcessAllRules(VecVecToken& tokens)
+{
+    std::vector<t_token>    updatedFacts;
+    auto                    isAllFactsKnown = false;
+
+    MarkAllTrueFacts(tokens);
+
+    for (auto it = tokens.begin(); it == tokens.end() && isAllFactsKnown;)
+    {
+        updatedFacts = ProcessRule(*it);
+
+        if (!updatedFacts.empty())
+        {
+            for (const auto& fact : updatedFacts)
+                MarkKnownFact(tokens, fact);
+
+            updatedFacts.clear();
+            it = tokens.begin();
+            continue;
+        }
+
+        if (it == tokens.end() && updatedFacts.empty() && !isAllFactsKnown)
+        {
+            MarkAllFalseFacts(tokens);
+
+            it = tokens.begin();
+            isAllFactsKnown = true;
+            continue;
+        }
+
+        it++;
+    }
+}
+
+static  bool IsOperatorMorePriority(const std::string& op1, const std::string& op2)
+{
+    return operationPriority.at(op1) > operationPriority.at(op2);
+}
+
+ExpertSystem::VecToken ExpertSystem::ProcessRule(const VecToken& rule) const
+{
+    VecToken updatedTokens;
+    
+    std::stack<t_token> factStack;
+    std::stack<t_token> operatorStack;
+
+    for (const auto& token : rule)
+    {
+        if (token.type == Fact)
+        {
+            factStack.emplace(token);
+        }
+        else if (token.type == Operator && operatorStack.empty())
+        {
+            operatorStack.emplace(token);
+        }
+        else if (token.type == Operator && !operatorStack.empty())
+        {
+            if (IsOperatorMorePriority(token.name, operatorStack.top().name))
+                operatorStack.emplace(token);
+            
+
+        }
+    }
+
+    return updatedTokens;
+}
+
+void    ExpertSystem::MarkAllFalseFacts(VecVecToken& dataInTokens)
+{
+    for (auto& vecToken : dataInTokens)
+    {
+        for (auto& token : vecToken)
+        {
+            if (!token.isChecked)
+            {
+                token.value = false;
+                token.isChecked = true;
+            }
+        }
+    }
+}
+
+void    ExpertSystem::MarkKnownFact(VecVecToken& dataInTokens,
+                                    const t_token& trueFact)
+{
+    for (auto& vecToken : dataInTokens)
+    {
+        for (auto& token : vecToken)
+        {
+            if (token.name == trueFact.name)
+                token = trueFact;
+        }
+    }
+}
+
+void    ExpertSystem::MarkAllTrueFacts(VecVecToken& dataInTokens)
+{
+    for (auto& vecToken : dataInTokens)
+    {
+        for (auto& token : vecToken)
+        {
+            if (token.type == Operator)
+                continue;
+
+            for (const auto trueFact : _trueFacts)
+            {
+                if (trueFact == *token.name.cbegin())
+                {
+                    token.value = true;
+                    token.isChecked = true;
+                }
+            }
+        }
+    }
+}
+
+ExpertSystem::t_token ExpertSystem::CreateTokenStruct(const std::string& line) const
+{        
+    return ExpertSystem::t_token 
+    {
+        std::regex_match(line, std::regex("[A-Z]")) ? Fact : Operator,
+        line,
+    };
+}
+
+ExpertSystem::VecToken ExpertSystem::SplitOnTokensStructs(std::string line) const
+{
+    std::cmatch             result;
+    std::regex              regular("([A-Z])|(=>)|([+!|^()])");
+    std::vector<t_token>    lineTokens;
+
+    while (std::regex_search(line.c_str(), result, regular))
+    {
+        lineTokens.push_back(CreateTokenStruct(*result.cbegin()));
+
+        line = result.suffix().str();
+    }
+
+    return lineTokens;
 }
 
 ExpertSystem::VecVecToken ExpertSystem::Lexer(const VecStr& data)
 {
     VecVecToken dataInTokens;
-    
-    std::cmatch result;
-    std::regex regular("([A-Z])|(=>)|([+!|^()])");
 
-    for (std::string line : data)
+    for (const std::string& line : data)
     {
-        while (std::regex_search (line.c_str(), result, regular))
-        {
-            std::cout << *result.cbegin() << std::endl;
- 
-            line = result.suffix().str();
-        }
-        std::cout << std::endl;
+        if (line.empty())
+            continue;
+
+        dataInTokens.push_back(SplitOnTokensStructs(line));
     }
     return dataInTokens;
-}
-
-void    ExpertSystem::SaveTokens(VecStr& data)
-{
-    _trueFacts = GetСondition(data, "=");
-    _factsToFind = GetСondition(data, "\\?");
-
-    _dataInTokens = Lexer(data);
-
-    // for (auto symb : _trueFacts)
-    // {
-    //     std::cout << symb << std::endl;
-    // }
-
-    // std::cout << std::endl;
-    // for (auto symb : _factsToFind)
-    // {
-    //     std::cout << symb << std::endl;
-    // }
-    // std::cout << std::endl;
-
 }
 
 VecChr  ExpertSystem::GetСondition(VecStr& data, const std::string& factType)
@@ -138,7 +253,7 @@ VecStr  ExpertSystem::CutAllComments(const VecStr& data, char commentSymbol) con
     return noCommentsData;
 }
 
-bool    ExpertSystem::ValidateData(const VecStr& data) const
+bool    ExpertSystem::IsDataValid(const VecStr& data) const
 {
     if (data.size() == 1 && *data.begin() == "")
     {
@@ -146,13 +261,13 @@ bool    ExpertSystem::ValidateData(const VecStr& data) const
         return false;
     }
 
-    if (!AllSymbolsValid(data))
+    if (!IsAllSymbolsValid(data))
         return false;
 
     return true;
 }
 
-bool    ExpertSystem::AllSymbolsValid(const VecStr& data) const
+bool    ExpertSystem::IsAllSymbolsValid(const VecStr& data) const
 {
     std::regex reg("[A-Z\\s|+?\\^!=>()]*"); //ADD MORE OPERATORS IF NEEDED
     
