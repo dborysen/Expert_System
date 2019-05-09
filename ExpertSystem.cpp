@@ -6,21 +6,22 @@
 /*   By: dborysen <dborysen@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2019/04/30 15:05:25 by dborysen          #+#    #+#             */
-/*   Updated: 2019/05/08 16:42:25 by dborysen         ###   ########.fr       */
+/*   Updated: 2019/05/09 16:27:33 by dborysen         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "ExpertSystem.hpp"
 #include <map>
 
-static std::map<std::string, size_t> operationPriority {
+static std::map<std::string, size_t> operationPriority
+{
     {"(", 6},
-    {")", 6},
     {"!", 5},
     {"+", 4},
     {"|", 3},
     {"^", 2},
     {"=>", 1},
+    {")", 0},
 };
 
 static VecChr SplitOnSymbols(const std::string& str)
@@ -57,7 +58,7 @@ void    ExpertSystem::ProcessAllRules(VecVecToken& tokens)
 
     MarkAllTrueFacts(tokens);
 
-    for (auto it = tokens.begin(); it == tokens.end() && isAllFactsKnown;)
+    for (auto it = tokens.begin(); it != tokens.end() && !isAllFactsKnown; it++)
     {
         updatedFacts = ProcessRule(*it);
 
@@ -80,7 +81,6 @@ void    ExpertSystem::ProcessAllRules(VecVecToken& tokens)
             continue;
         }
 
-        it++;
     }
 }
 
@@ -89,28 +89,102 @@ static  bool IsOperatorMorePriority(const std::string& op1, const std::string& o
     return operationPriority.at(op1) > operationPriority.at(op2);
 }
 
+void ExpertSystem::AndOperator(StackToken& facts) const
+{
+    auto fact1 = facts.top();
+    facts.pop();
+    auto fact2 = facts.top();
+    facts.pop();
+
+    fact1.value = fact1.value && fact2.value;
+
+    facts.emplace(fact1);
+}
+
+void ExpertSystem::OrOperator(StackToken& facts) const
+{
+    auto fact1 = facts.top();
+    facts.pop();
+    auto fact2 = facts.top();
+    facts.pop();
+
+    fact1.value = fact1.value || fact2.value;
+
+    facts.emplace(fact1);
+}
+
+void ExpertSystem::NegationOperator(StackToken& facts) const
+{
+    auto fact = facts.top();
+    facts.pop();
+
+    fact.value = !fact.value;
+
+    facts.emplace(fact);
+}
+
+void ExpertSystem::XorOperator(StackToken& facts) const
+{
+    auto fact1 = facts.top();
+    facts.pop();
+    auto fact2 = facts.top();
+    facts.pop();
+
+    fact1.value = fact1.value ^ fact2.value;
+
+    facts.emplace(fact1);
+}
+
+void ExpertSystem::ImplicationOperator(StackToken& facts) const
+{
+
+}
+
+void ExpertSystem::ProcessPriorityOperator(StackToken& facts,
+    StackToken& operators) const
+{
+    std::map<std::string, MethodPtr> funcMap
+    {
+        {"+", &ExpertSystem::AndOperator},
+        {"|", &ExpertSystem::OrOperator},
+        {"!", &ExpertSystem::NegationOperator},
+        {"^", &ExpertSystem::XorOperator},
+        {"=>", &ExpertSystem::ImplicationOperator}
+    };
+
+    const auto topOperator = operators.top().name;
+    const auto neededFunc = funcMap.at(topOperator);
+
+    (this->*neededFunc)(facts);
+
+    operatorStack.pop();
+}
+
 ExpertSystem::VecToken ExpertSystem::ProcessRule(const VecToken& rule) const
 {
     VecToken updatedTokens;
     
-    std::stack<t_token> factStack;
-    std::stack<t_token> operatorStack;
+    StackToken facts;
+    StackToken operatorStack;
 
     for (const auto& token : rule)
     {
         if (token.type == Fact)
         {
-            factStack.emplace(token);
+            facts.emplace(token);
         }
-        else if (token.type == Operator && operatorStack.empty())
+        else if (token.type == Operator)
         {
-            operatorStack.emplace(token);
-        }
-        else if (token.type == Operator && !operatorStack.empty())
-        {
-            if (IsOperatorMorePriority(token.name, operatorStack.top().name))
+            if (operatorStack.empty() ||
+                IsOperatorMorePriority(token.name, operatorStack.top().name) ||
+                token.name == "(")
                 operatorStack.emplace(token);
-            
+            else
+            {
+                while (!IsOperatorMorePriority(token.name, operatorStack.top().name))
+                    ProcessPriorityOperator(facts, operatorStack);
+                // operatorStack.emplace(token);
+            }
 
         }
     }

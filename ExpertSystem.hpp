@@ -6,7 +6,7 @@
 /*   By: dborysen <dborysen@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2019/04/23 13:44:35 by dborysen          #+#    #+#             */
-/*   Updated: 2019/05/08 15:52:04 by dborysen         ###   ########.fr       */
+/*   Updated: 2019/05/09 16:23:40 by dborysen         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -30,17 +30,6 @@ enum ExpertSystemAttributes
 class ExpertSystem
 {
 public:
-    ExpertSystem(const std::string& fileName);
-
-    ExpertSystem() = delete;
-    ExpertSystem(const ExpertSystem&& other) = delete;
-    ExpertSystem(const ExpertSystem& other) = delete;
-    ~ExpertSystem() = default;
-
-    ExpertSystem&    operator=(const ExpertSystem& other) = delete;
-    ExpertSystem&&   operator=(const ExpertSystem&& other) = delete;
-
-private:
     enum TokenType
     {
         Fact,
@@ -55,8 +44,21 @@ private:
         bool        isChecked = false;
     }               t_token;
 
+    ExpertSystem(const std::string& fileName);
+
+    ExpertSystem() = delete;
+    ExpertSystem(const ExpertSystem&& other) = delete;
+    ExpertSystem(const ExpertSystem& other) = delete;
+    ~ExpertSystem() = default;
+
+    ExpertSystem&    operator=(const ExpertSystem& other) = delete;
+    ExpertSystem&&   operator=(const ExpertSystem&& other) = delete;
+
+private:
     using VecToken = std::vector<t_token>;
     using VecVecToken = std::vector<VecToken>;
+    using StackToken = std::stack<ExpertSystem::t_token>;
+    using MethodPtr = void (ExpertSystem::*)(StackToken& factStack) const;
 
     VecStr      LoadData(const std::string& fileName) const;
 
@@ -78,6 +80,19 @@ private:
     void        MarkAllFalseFacts(VecVecToken& dataInTokens);
 
     VecToken    ProcessRule(const VecToken& rule) const;
+    void        ProcessPriorityOperator(StackToken& factStack,
+                                        StackToken& operatorStack) const;
+
+    void        AndOperator(StackToken& factStack) const;
+    void        OrOperator(StackToken& factStack) const;
+    void        NegationOperator(StackToken& factStack) const;
+    void        XorOperator(StackToken& factStack) const;
+    void        ImplicationOperator(StackToken& factStack) const;
+
+
+
+
+
 
     VecStr  _fileData;
 
