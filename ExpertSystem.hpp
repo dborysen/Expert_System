@@ -6,7 +6,7 @@
 /*   By: dborysen <dborysen@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2019/04/23 13:44:35 by dborysen          #+#    #+#             */
-/*   Updated: 2019/05/09 16:23:40 by dborysen         ###   ########.fr       */
+/*   Updated: 2019/05/13 15:46:30 by dborysen         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -42,7 +42,13 @@ public:
         std::string name;
         bool        value = false;
         bool        isChecked = false;
+        // bool        isChanged = false;
     }               t_token;
+
+    using VecToken = std::vector<t_token>;
+    using VecVecToken = std::vector<VecToken>;
+    using StackToken = std::stack<ExpertSystem::t_token>;
+    using MethodPtr = void (ExpertSystem::*)(StackToken& factStack) const;
 
     ExpertSystem(const std::string& fileName);
 
@@ -54,12 +60,9 @@ public:
     ExpertSystem&    operator=(const ExpertSystem& other) = delete;
     ExpertSystem&&   operator=(const ExpertSystem&& other) = delete;
 
-private:
-    using VecToken = std::vector<t_token>;
-    using VecVecToken = std::vector<VecToken>;
-    using StackToken = std::stack<ExpertSystem::t_token>;
-    using MethodPtr = void (ExpertSystem::*)(StackToken& factStack) const;
+    void        OutputResult() const;
 
+private:
     VecStr      LoadData(const std::string& fileName) const;
 
     VecStr      CutAllComments(const VecStr& data, char commentSymbol) const;
@@ -75,7 +78,7 @@ private:
     void        ProcessAllRules(VecVecToken& dataInTokens);
 
     void        MarkAllTrueFacts(VecVecToken& dataInTokens);
-    void        MarkKnownFact(VecVecToken& dataInTokens,
+    void        MarkKnownFact(VecVecToken& dataInTokens, 
                                 const t_token& trueFact);
     void        MarkAllFalseFacts(VecVecToken& dataInTokens);
 
@@ -88,11 +91,6 @@ private:
     void        NegationOperator(StackToken& factStack) const;
     void        XorOperator(StackToken& factStack) const;
     void        ImplicationOperator(StackToken& factStack) const;
-
-
-
-
-
 
     VecStr  _fileData;
 

@@ -6,7 +6,7 @@
 /*   By: dborysen <dborysen@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2019/04/23 13:43:37 by dborysen          #+#    #+#             */
-/*   Updated: 2019/05/03 13:32:23 by dborysen         ###   ########.fr       */
+/*   Updated: 2019/05/13 17:33:41 by dborysen         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -21,7 +21,9 @@ int main(int argc, char** argv)
         if (argc != maxArgNum)
             throw std::logic_error("\033[1;31mError:\033[0m wrong params num");
 
-        std::make_unique<ExpertSystem>(argv[argId]);
+        auto expertSystem = std::make_unique<ExpertSystem>(argv[argId]);
+
+        expertSystem->OutputResult();
 
     }
     catch(const std::exception& e)

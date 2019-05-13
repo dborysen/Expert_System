@@ -1,9 +1,15 @@
-B + !C => A
+B => A 
+D + E => B 
+G + H => F 
+I + J => G 
+G => H 
+L + M => K 
+O + P => L + N 
+N => M 
 
-=B # Initial facts : A, B and G are true. All others are false.
-# If no facts are initially true, then a simple "=" followed
-# by a newline is used
-?A # Queries : What are G, V and X ?
+=EDEIJOP
+
+?AFKP 
 
 #( )
 #!
