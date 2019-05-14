@@ -6,7 +6,7 @@
 /*   By: dborysen <dborysen@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2019/04/30 15:05:25 by dborysen          #+#    #+#             */
-/*   Updated: 2019/05/13 19:55:14 by dborysen         ###   ########.fr       */
+/*   Updated: 2019/05/14 17:25:23 by dborysen         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -15,13 +15,13 @@
 
 static std::map<std::string, size_t> operationPriority
 {
-    {"(", 6},
+    {")", 6},
     {"!", 5},
     {"+", 4},
     {"|", 3},
     {"^", 2},
     {"=>", 1},
-    {")", 0},
+    {"(", 0},
 };
 
 static VecChr SplitOnSymbols(const std::string& str)
@@ -51,18 +51,61 @@ ExpertSystem::ExpertSystem(const std::string& fileName)
     ProcessAllRules(_tokens);
 }
 
+void    ExpertSystem::OutputFileData() const
+{
+    for (const auto& line : _fileData)
+    {
+        if (!line.empty())
+            std::cout << "\033[1;37m" + line + "\033[0m"<< std::endl;
+    }
+
+    std::cout << "\n\033[1;32m=\033[0m";
+
+    for (const auto fact : _trueFacts)
+        std::cout << "\033[1;32m" << fact << "\033[0m";
+
+    std::cout << "\n\n\033[1;31m?\033[0m";
+
+    for (const auto fact : _factsToFind)
+        std::cout << "\033[1;31m" << fact << "\033[0m";
+
+    std::cout << "\n\n";
+}
+
 void    ExpertSystem::OutputResult() const
 {
+    OutputFileData();
+
+    std::vector<char> shownFacts;
+
+    const auto IsInContainer = [&shownFacts](char fact)
+    {
+        return std::find(shownFacts.begin(), shownFacts.end(), fact)
+            != shownFacts.end();
+    };
+
     for (const auto& vecToken : _tokens)
     {
         for (const auto& token : vecToken)
         {
-            for (const auto factToFind : _factsToFind)
+            for (auto factToFind : _factsToFind)
             {
-                if (factToFind == *token.name.cbegin())
+                if (factToFind == *token.name.cbegin() && !IsInContainer(factToFind))
                 {
-                    std::cout << *token.name.cbegin() << ": " << std::boolalpha
-                    << token.value << std::endl;
+                    std::cout << "\033[1;37m"
+                                << *token.name.cbegin()
+                                << ":\033[0m ";
+
+                    if (token.value)
+                        std::cout << "\033[1;32m"
+                        << std::boolalpha
+                        << token.value << "\033[0m\n";
+                    else
+                        std::cout << "\033[1;31m"
+                        << std::boolalpha
+                        << token.value << "\033[0m\n";
+
+                    shownFacts.push_back(factToFind);
                 }
             }
         }
@@ -72,7 +115,6 @@ void    ExpertSystem::OutputResult() const
 void    ExpertSystem::ProcessAllRules(VecVecToken& tokens)
 {
     VecToken    updatedFacts;
-    auto        isAllFactsKnown = false;
 
     MarkAllTrueFacts(tokens);
 
@@ -89,16 +131,6 @@ void    ExpertSystem::ProcessAllRules(VecVecToken& tokens)
             it = tokens.begin();
             continue;
         }
-
-        if (it == tokens.end() - 1 && updatedFacts.empty() && !isAllFactsKnown)
-        {
-            MarkAllFalseFacts(tokens);
-
-            it = tokens.begin();
-            isAllFactsKnown = true;
-            continue;
-        }
-
         ++it;
     }
 }
@@ -110,6 +142,9 @@ static  bool IsOperatorMorePriority(const std::string& op1, const std::string& o
 
 void ExpertSystem::AndOperator(StackToken& facts) const
 {
+    if (facts.size() < 2)
+        throw std::logic_error("\033[1;31mError:\033[0m wrong data format");
+
     auto fact1 = facts.top();
     facts.pop();
     auto fact2 = facts.top();
@@ -122,6 +157,9 @@ void ExpertSystem::AndOperator(StackToken& facts) const
 
 void ExpertSystem::OrOperator(StackToken& facts) const
 {
+    if (facts.size() < 2)
+        throw std::logic_error("\033[1;31mError:\033[0m wrong data format");
+
     auto fact1 = facts.top();
     facts.pop();
     auto fact2 = facts.top();
@@ -134,6 +172,8 @@ void ExpertSystem::OrOperator(StackToken& facts) const
 
 void ExpertSystem::NegationOperator(StackToken& facts) const
 {
+    
+
     auto fact = facts.top();
     facts.pop();
 
@@ -144,6 +184,9 @@ void ExpertSystem::NegationOperator(StackToken& facts) const
 
 void ExpertSystem::XorOperator(StackToken& facts) const
 {
+    if (facts.size() < 2)
+        throw std::logic_error("\033[1;31mError:\033[0m wrong data format");
+
     auto fact1 = facts.top();
     facts.pop();
     auto fact2 = facts.top();
@@ -156,6 +199,9 @@ void ExpertSystem::XorOperator(StackToken& facts) const
 
 void ExpertSystem::ImplicationOperator(StackToken& facts) const
 {
+    if (facts.size() > 2)
+        throw std::logic_error("\033[1;31mError:\033[0m wrong data format");
+
     auto fact1 = facts.top();
     facts.pop();
     auto fact2 = facts.top();
@@ -188,6 +234,18 @@ void ExpertSystem::ProcessPriorityOperator(StackToken& facts,
     operators.pop();
 }
 
+void    ExpertSystem::ProcessParentheses(StackToken& facts,
+    StackToken& operators) const
+{
+    while (operators.top().name != "(")
+    {
+        ProcessPriorityOperator(facts, operators);
+        if (operators.empty())
+            throw std::logic_error("\033[1;31mError:\033[0m no open parenthes");
+    }
+    operators.pop();
+}
+
 ExpertSystem::VecToken ExpertSystem::ProcessRule(const VecToken& rule) const
 {
     VecToken    updatedTokens;
@@ -198,15 +256,18 @@ ExpertSystem::VecToken ExpertSystem::ProcessRule(const VecToken& rule) const
     {
         if (token.type == Fact)
         {
-            if (!token.isChecked)
-                return updatedTokens;
             facts.emplace(token);
         }
         else if (token.type == Operator)
         {
+            if (token.name == ")")
+            {
+                ProcessParentheses(facts, operators);
+                continue;
+            }
+
             if (operators.empty() ||
-                IsOperatorMorePriority(token.name, operators.top().name) ||
-                token.name == "(")
+                IsOperatorMorePriority(token.name, operators.top().name))
                 {
                     operators.emplace(token);
                 }
@@ -222,28 +283,41 @@ ExpertSystem::VecToken ExpertSystem::ProcessRule(const VecToken& rule) const
         }
     }
 
-    //HANDLE CASE WITH A + B => C + D HERE
-    while (!operators.empty())
-        ProcessPriorityOperator(facts, operators);
+    if (operators.size() == operatorInConclusion)
+        ProcessAndInConclusion(facts, operators);
 
-    if (!facts.empty())
+    while (!operators.empty())
+         ProcessPriorityOperator(facts, operators);
+    
+    for (;!facts.empty(); facts.pop())
         updatedTokens.push_back(facts.top());
 
     return updatedTokens;
 }
 
-void    ExpertSystem::MarkAllFalseFacts(VecVecToken& dataInTokens)
+void   ExpertSystem::ProcessAndInConclusion(StackToken& facts,
+    StackToken& operators) const
 {
-    for (auto& vecToken : dataInTokens)
+    //HANDLE IF CASE WHEN SMTHINNG ALSE IN CONCLUTION EXEPT +
+
+    auto factConclusion1 = facts.top();
+    facts.pop();
+    auto factConclusion2 = facts.top();
+    facts.pop();
+    auto state = facts.top();
+    facts.pop();
+
+    if (state.value && !factConclusion1.value && !factConclusion2.value)
     {
-        for (auto& token : vecToken)
-        {
-            if (!token.isChecked)
-            {
-                token.isChecked = true;
-            }
-        }
+        factConclusion1.value = true;
+        factConclusion2.value = true;
+
+        facts.emplace(factConclusion1);
+        facts.emplace(factConclusion2);
     }
+
+    operators.pop();
+    operators.pop();
 }
 
 void    ExpertSystem::MarkKnownFact(VecVecToken& dataInTokens,
@@ -254,10 +328,7 @@ void    ExpertSystem::MarkKnownFact(VecVecToken& dataInTokens,
         for (auto& token : vecToken)
         {
             if (token.name == trueFact.name && token.value != trueFact.value)
-            {
-                // token.isChanged = true;
                 token.value = trueFact.value;
-            }
         }
     }
 }
@@ -274,10 +345,7 @@ void    ExpertSystem::MarkAllTrueFacts(VecVecToken& dataInTokens)
             for (const auto trueFact : _trueFacts)
             {
                 if (trueFact == *token.name.cbegin())
-                {
                     token.value = true;
-                    token.isChecked = true;
-                }
             }
         }
     }
@@ -363,8 +431,7 @@ VecStr  ExpertSystem::CutAllComments(const VecStr& data, char commentSymbol) con
     {
         std::string tmp = line.substr(0, line.find(commentSymbol));
 
-        if (!tmp.empty())
-            noCommentsData.push_back(tmp);
+        noCommentsData.push_back(tmp);
     }
 
     return noCommentsData;
@@ -386,7 +453,7 @@ bool    ExpertSystem::IsDataValid(const VecStr& data) const
 
 bool    ExpertSystem::IsAllSymbolsValid(const VecStr& data) const
 {
-    std::regex reg("[A-Z\\s|+?\\^!=>()]*"); //ADD MORE OPERATORS IF NEEDED
+    std::regex reg("[A-Z\\s|+?\\^!=>()]*");
     
     auto isOk = true;
 
@@ -395,8 +462,8 @@ bool    ExpertSystem::IsAllSymbolsValid(const VecStr& data) const
         if (!std::regex_match(data.at(i).c_str(), reg))
         {
             std::cerr << "[line " << i + 1
-            << "]\033[1;31m Error\033[0m wrong input format:"
-            << std::endl << "\t" + data.at(i) << std::endl;
+            << "]\033[1;31m Error\033[0m wrong input format:\n\t"
+            << data.at(i) << std::endl;
 
             isOk = false;
         }
