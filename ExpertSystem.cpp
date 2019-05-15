@@ -6,7 +6,7 @@
 /*   By: dborysen <dborysen@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2019/04/30 15:05:25 by dborysen          #+#    #+#             */
-/*   Updated: 2019/05/14 17:25:23 by dborysen         ###   ########.fr       */
+/*   Updated: 2019/05/15 13:34:22 by dborysen         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -36,6 +36,36 @@ static VecChr SplitOnSymbols(const std::string& str)
     return vecChr;
 }
 
+static void OutputNonValidLine(const ExpertSystem::VecToken& tokens)
+{
+    std::cout << "\t";
+    for (const auto& token : tokens)
+    {
+        std::cerr << token.name + " ";
+    }
+    std::cerr << std::endl;
+}
+
+static  bool IsOperatorMorePriority(const std::string& op1, const std::string& op2)
+{
+    return operationPriority.at(op1) > operationPriority.at(op2);
+}
+
+static ExpertSystem::PairToken GetTopTwoFacts(ExpertSystem::StackToken& facts)
+{
+    ExpertSystem::PairToken TopTwoFacts;
+
+    if (facts.size() < 2)
+        throw std::logic_error("\033[1;31mError:\033[0m wrong input format");
+
+    TopTwoFacts.first = facts.top();
+    facts.pop();
+    TopTwoFacts.second = facts.top();
+    facts.pop();
+
+    return TopTwoFacts;
+}
+
 ExpertSystem::ExpertSystem(const std::string& fileName)
 {    
     _fileData = CutAllComments(LoadData(fileName), '#');
@@ -47,8 +77,35 @@ ExpertSystem::ExpertSystem(const std::string& fileName)
     _factsToFind = GetСondition(_fileData, "\\?");
 
     _tokens = Lexer(_fileData);
+
+    if (!IsImplicationOnPlace(_tokens))
+        throw std::logic_error("Validation Failed");
     
     ProcessAllRules(_tokens);
+}
+
+bool    ExpertSystem::IsImplicationOnPlace(const VecVecToken& tokens) const
+{
+    auto i = 0u;
+    auto isOk = true;
+
+    for (const auto& vecToken : tokens)
+    {
+        i = 0u;
+        for (const auto& token : vecToken)
+        {
+            if (token.name == "=>")
+                i++;
+        }
+        if (i > 1 || i == 0)
+        {
+            isOk = false;
+            std::cerr << "\033[1;31mError:\033[0m wrong input format\n";
+            OutputNonValidLine(vecToken);
+        }
+    }
+
+    return isOk;
 }
 
 void    ExpertSystem::OutputFileData() const
@@ -76,7 +133,7 @@ void    ExpertSystem::OutputResult() const
 {
     OutputFileData();
 
-    std::vector<char> shownFacts;
+    VecChr shownFacts;
 
     const auto IsInContainer = [&shownFacts](char fact)
     {
@@ -135,45 +192,38 @@ void    ExpertSystem::ProcessAllRules(VecVecToken& tokens)
     }
 }
 
-static  bool IsOperatorMorePriority(const std::string& op1, const std::string& op2)
-{
-    return operationPriority.at(op1) > operationPriority.at(op2);
-}
-
 void ExpertSystem::AndOperator(StackToken& facts) const
 {
-    if (facts.size() < 2)
-        throw std::logic_error("\033[1;31mError:\033[0m wrong data format");
+    auto topTwoFacts = GetTopTwoFacts(facts);
 
-    auto fact1 = facts.top();
-    facts.pop();
-    auto fact2 = facts.top();
-    facts.pop();
+    topTwoFacts.first.value = topTwoFacts.first.value &&
+                                topTwoFacts.second.value;
 
-    fact1.value = fact1.value && fact2.value;
-
-    facts.emplace(fact1);
+    facts.emplace(topTwoFacts.first);
 }
 
 void ExpertSystem::OrOperator(StackToken& facts) const
 {
-    if (facts.size() < 2)
-        throw std::logic_error("\033[1;31mError:\033[0m wrong data format");
+    auto topTwoFacts = GetTopTwoFacts(facts);
 
-    auto fact1 = facts.top();
-    facts.pop();
-    auto fact2 = facts.top();
-    facts.pop();
+    topTwoFacts.first.value = topTwoFacts.first.value ||
+                                topTwoFacts.second.value;
 
-    fact1.value = fact1.value || fact2.value;
+    facts.emplace(topTwoFacts.first);
+}
 
-    facts.emplace(fact1);
+void ExpertSystem::XorOperator(StackToken& facts) const
+{
+    auto topTwoFacts = GetTopTwoFacts(facts);
+
+    topTwoFacts.first.value = topTwoFacts.first.value ^
+                                topTwoFacts.second.value;
+
+    facts.emplace(topTwoFacts.first);
 }
 
 void ExpertSystem::NegationOperator(StackToken& facts) const
 {
-    
-
     auto fact = facts.top();
     facts.pop();
 
@@ -182,25 +232,10 @@ void ExpertSystem::NegationOperator(StackToken& facts) const
     facts.emplace(fact);
 }
 
-void ExpertSystem::XorOperator(StackToken& facts) const
-{
-    if (facts.size() < 2)
-        throw std::logic_error("\033[1;31mError:\033[0m wrong data format");
-
-    auto fact1 = facts.top();
-    facts.pop();
-    auto fact2 = facts.top();
-    facts.pop();
-
-    fact1.value = fact1.value ^ fact2.value;
-
-    facts.emplace(fact1);
-}
-
 void ExpertSystem::ImplicationOperator(StackToken& facts) const
 {
-    if (facts.size() > 2)
-        throw std::logic_error("\033[1;31mError:\033[0m wrong data format");
+    if (facts.size() != 2)
+        throw std::logic_error("\033[1;31mError:\033[0m wrong input format");
 
     auto fact1 = facts.top();
     facts.pop();
@@ -298,7 +333,8 @@ ExpertSystem::VecToken ExpertSystem::ProcessRule(const VecToken& rule) const
 void   ExpertSystem::ProcessAndInConclusion(StackToken& facts,
     StackToken& operators) const
 {
-    //HANDLE IF CASE WHEN SMTHINNG ALSE IN CONCLUTION EXEPT +
+    if (facts.size() < 3)
+        throw std::logic_error("\033[1;31mError:\033[0m wrong data format");
 
     auto factConclusion1 = facts.top();
     facts.pop();
@@ -393,25 +429,22 @@ ExpertSystem::VecVecToken ExpertSystem::Lexer(const VecStr& data)
 VecChr  ExpertSystem::GetСondition(VecStr& data, const std::string& factType)
 {
     std::cmatch result;
-    std::regex regular(factType + "([A-Z]*)[^>]*");
+    std::regex  regular{factType + "([A-Z]*)[^>]*"};
 
-    VecChr      facts;
-    auto        matchFound = false;
+    VecChr  facts;
+    auto    matchFound = false;
 
-    std::string logFactType = factType == "=" ?
-                                "initial facts" :
-                                "queries";
+    const std::string logFactType{ factType == "=" ? "initial facts" : "queries" };
 
     for (auto& line : data)
     {
         if (std::regex_match(line.c_str(), result, regular))
         {
             if (matchFound)
-                throw std::logic_error(
-                    "\033[1;31mError:\033[0m more then one " +
+                throw std::logic_error( "\033[1;31mError:\033[0m more then one " +
                     logFactType + " line");
 
-            facts = SplitOnSymbols(result[0]);
+            facts = SplitOnSymbols(*result.begin());
             line.clear();
             matchFound = true;
         }
@@ -461,7 +494,8 @@ bool    ExpertSystem::IsAllSymbolsValid(const VecStr& data) const
     {
         if (!std::regex_match(data.at(i).c_str(), reg))
         {
-            std::cerr << "[line " << i + 1
+            std::cerr << "[line "
+            << i + 1
             << "]\033[1;31m Error\033[0m wrong input format:\n\t"
             << data.at(i) << std::endl;
 
@@ -477,9 +511,10 @@ VecStr ExpertSystem::LoadData(const std::string& fileName) const
     VecStr          fileData;
 
     inFile.open(fileName);
+
     if (inFile.fail())
     {
-        std::cerr << "\033[1;31mError\033[0m Opening File" << std::endl;
+        std::cerr << "\033[1;31mError\033[0m Opening File\n";
         exit(1);
     }
 
@@ -488,6 +523,7 @@ VecStr ExpertSystem::LoadData(const std::string& fileName) const
         std::getline(inFile, line);
         fileData.push_back(line);
     }
+
     inFile.close();
 
     return fileData;
