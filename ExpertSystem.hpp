@@ -6,7 +6,7 @@
 /*   By: dborysen <dborysen@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2019/04/23 13:44:35 by dborysen          #+#    #+#             */
-/*   Updated: 2019/05/15 13:22:37 by dborysen         ###   ########.fr       */
+/*   Updated: 2019/05/16 14:06:40 by dborysen         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -25,7 +25,8 @@ enum ExpertSystemAttributes
 {
     maxArgNum = 2,
     argId = 1,
-    operatorInConclusion = 2
+    operatorInConclusion = 2,
+    implicationValidNum = 1
 };
 
 class ExpertSystem
@@ -45,16 +46,16 @@ public:
     }               t_token;
 
     using VecToken = std::vector<t_token>;
-    using VecVecToken = std::vector<VecToken>;
-    using StackToken = std::stack<ExpertSystem::t_token>;
+    using VecVecToken = std::vector<std::vector<t_token> >;
+    using StackToken = std::stack<t_token>;
     using MethodPtr = void (ExpertSystem::*)(StackToken& facts) const;
     using PairToken = std::pair<t_token, t_token>;
 
     ExpertSystem(const std::string& fileName);
 
     ExpertSystem() = delete;
-    ExpertSystem(const ExpertSystem&& other) = delete;
     ExpertSystem(const ExpertSystem& other) = delete;
+    ExpertSystem(const ExpertSystem&& other) = delete;
     ~ExpertSystem() = default;
 
     ExpertSystem&    operator=(const ExpertSystem& other) = delete;
@@ -84,6 +85,8 @@ private:
 
     void        ProcessAllRules(VecVecToken& dataInTokens);
     VecToken    ProcessRule(const VecToken& rule) const;
+    void        ProcessOperator(const t_token& token, StackToken& facts,
+                                StackToken& operators) const;
     void        ProcessPriorityOperator(StackToken& facts,
                                         StackToken& operators) const;
     void        ProcessAndInConclusion(StackToken& facts,

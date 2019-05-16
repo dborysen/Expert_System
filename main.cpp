@@ -6,7 +6,7 @@
 /*   By: dborysen <dborysen@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2019/04/23 13:43:37 by dborysen          #+#    #+#             */
-/*   Updated: 2019/05/15 13:10:03 by dborysen         ###   ########.fr       */
+/*   Updated: 2019/05/16 13:05:23 by dborysen         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -23,7 +23,6 @@ int main(int argc, char** argv)
         auto expertSystem = std::make_unique<ExpertSystem>(argv[argId]);
 
         expertSystem->OutputResult();
-
     }
     catch(const std::exception& e)
     {
